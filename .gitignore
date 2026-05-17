@@ -30,5 +30,8 @@ Thumbs.db
 # Large model files (track configs but not weights)
 model/
 
+# npy file should make locally every time
+rag/
+
 # Zip
 *.zip
