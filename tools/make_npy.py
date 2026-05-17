@@ -43,15 +43,17 @@ def embed_texts(
 ) -> np.ndarray:
     """
     对文本列表批量编码, 返回 float32 的 (N, 1024) 向量矩阵.
-    取 last_hidden_state[:, 0] (BOS token) 后 L2 归一化.
+
+    文档向量: 直接编码文本, 无前缀.
+    取 last_hidden_state[:, -1] (last token) 后 L2 归一化.
     """
     inputs = tokenizer(
         texts, padding=True, truncation=True, max_length=512, return_tensors="pt"
     ).to(device)
 
     outputs = model(**inputs)
-    # (N, seq_len, 1024) → (N, 1024), 取第一个 token
-    embeddings = outputs.last_hidden_state[:, 0]
+    # (N, seq_len, 1024) → (N, 1024), 取最后 token (decoder-only 池化)
+    embeddings = outputs.last_hidden_state[:, -1]
     embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=-1)
     return embeddings.cpu().float().numpy().astype(np.float32)
 
@@ -148,7 +150,7 @@ def encode_single(model, tokenizer, device, text: str) -> np.ndarray:
     """编码单条文本, 返回 (1024,) float32 向量"""
     inputs = tokenizer(text, return_tensors="pt").to(device)
     outputs = model(**inputs)
-    emb = outputs.last_hidden_state[:, 0]
+    emb = outputs.last_hidden_state[:, -1]  # last token
     emb = torch.nn.functional.normalize(emb, p=2, dim=-1)
     return emb.cpu().numpy().flatten()
 
