@@ -31,7 +31,7 @@ Thumbs.db
 model/
 
 # npy file should make locally every time
-rag/
+rag/*.npy
 
 # Zip
 *.zip
