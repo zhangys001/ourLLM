@@ -79,13 +79,13 @@ def _cosine_similarity(query: np.ndarray, candidates: np.ndarray) -> np.ndarray:
     return c_norm @ q_norm
 
 
-def answer(question: str, debug: bool = False) -> str:
+def answer(question: str, debug: bool, threshold: float) -> str:
     """
     核心入口:
       1. 加载嵌入模型
       2. 编码问题向量
       3. 与 RAG 库余弦相似度检索
-      4. 最高相似度 > 0.8 则返回对应 Answer, 否则返回兜底
+      4. 最高相似度 > threshold 则返回对应 Answer, 否则返回兜底
 
     debug=True: 输出详细相似度到 stderr.
     """
@@ -112,19 +112,19 @@ def answer(question: str, debug: bool = False) -> str:
     # ── 调试输出 ──
     if debug:
         ranked = np.argsort(scores)[::-1]
-        _print_debug(question, items, scores, ranked)
+        _print_debug(question, items, scores, ranked, threshold)
 
     # ── 找最优匹配 ──
     best_idx = int(scores.argmax())
     best_score = float(scores[best_idx])
 
-    if best_score > 0.8:
+    if best_score > threshold:
         return items[best_idx].get("Answer", "没找到匹配项")
     else:
         return "没找到匹配项"
 
 
-def _print_debug(question, items, scores, ranked):
+def _print_debug(question, items, scores, ranked, threshold):
     """打印详细相似度到 stderr"""
     import sys as _sys
     out = _sys.stderr  # 不污染 stdout 的回答
@@ -139,7 +139,7 @@ def _print_debug(question, items, scores, ranked):
     best_score = float(scores[best_idx])
     for rank, idx in enumerate(ranked):
         item = items[idx]
-        marker = " ← 命中" if rank == 0 and best_score > 0.8 else ""
+        marker = " ← 命中" if rank == 0 and best_score > threshold else ""
         print(
             f"{rank + 1:<6}{float(scores[idx]):.4f}{'':>4}"
             f"{item.get('npyID', ''):<8}{item.get('Question', '')[:60]}{marker}",
@@ -148,11 +148,11 @@ def _print_debug(question, items, scores, ranked):
 
     print(file=out)
     print(f"最高相似度: {best_score:.4f}", file=out)
-    print(f"阈值 0.8: {'✓ 超过' if best_score > 0.8 else '✗ 未超过'}", file=out)
+    print(f"阈值 {threshold}: {'✓ 超过' if best_score > threshold else '✗ 未超过'}", file=out)
     print("=" * 70, file=out)
 
 
-def main():
+def main(threshold: float):
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print("用法: python main.py \"问题文本\" [--debug]", file=sys.stderr)
         sys.exit(1)
@@ -161,7 +161,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     question = args[0].strip() if args else ""
 
-    result = answer(question, debug=DEBUG).strip()
+    result = answer(question, debug=DEBUG, threshold=threshold).strip()
 
     if not result:
         result = "没找到匹配项"
@@ -170,4 +170,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(threshold=0.7)
