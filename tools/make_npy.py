@@ -96,52 +96,42 @@ def build_embeddings(
     print(f"  npyID 已回填 → {json_path}")
 
 
-def process_json_files(model, tokenizer, device: str) -> None:
+def process_single_json(model, tokenizer, device: str, json_filename: str, field: str) -> None:
     """
-    扫描 rag/ 目录, 查找 .json 文件并分派处理.
+    处理单个 JSON 文件, 对指定字段编码并回填 npyID.
 
-    文件命名约定:
-      - embedding_qa.json    → 编码 "Question" 字段 → embedding_qa.npy
-      - embedding_xxx.json   → 编码 "Question" 字段 → embedding_xxx.npy
+    Args:
+        json_filename: JSON 文件名 (如 "embedding_qa.json"), 位于 rag/ 目录下
+        field:         要编码的字段名 (如 "Question", "content")
     """
-    json_files = sorted(RAG_DIR.glob("*.json"))
-    if not json_files:
-        print("⚠  未找到 rag/*.json 文件")
+    jp = RAG_DIR / json_filename
+    if not jp.exists():
+        print(f"⚠  未找到文件: {jp}")
         return
 
-    for jp in json_files:
-        print(f"\n{'='*60}")
-        print(f"处理: {jp.name}")
-        print(f"{'='*60}")
+    print(f"\n{'='*60}")
+    print(f"处理: {jp.name} (目标字段: {field})")
+    print(f"{'='*60}")
 
-        with open(jp, "r", encoding="utf-8") as f:
-            items = json.load(f)
+    with open(jp, "r", encoding="utf-8") as f:
+        items = json.load(f)
 
-        if not isinstance(items, list):
-            print(f"  ⚠  跳过: 顶层不是 JSON 数组")
-            continue
+    if not isinstance(items, list):
+        print(f"  ⚠  跳过: 顶层不是 JSON 数组")
+        return
 
-        if not items:
-            # 空列表: 删旧 .npy 避免 stale 数据
-            if output_npy.exists():
-                output_npy.unlink()
-                print(f"  🗑  空列表, 删除旧 .npy: {output_npy.name}")
-            else:
-                print(f"  ⚠  空列表, 跳过")
-            continue
+    output_npy = jp.with_suffix(".npy")
 
-        # 约定: 输出 .npy 与 .json 同名, 扩展名替换为 .npy
-        stem = jp.stem  # "embedding_qa", "knowledge" ...
-        if stem.startswith("embedding_"):
-            field = "Question"
+    if not items:
+        # 空列表: 删旧 .npy 避免 stale 数据
+        if output_npy.exists():
+            output_npy.unlink()
+            print(f"  🗑  空列表, 删除旧 .npy: {output_npy.name}")
         else:
-            field = "Question"  # 默认也用 Question, 可扩展
+            print(f"  ⚠  空列表, 跳过")
+        return
 
-        output_npy = jp.with_suffix(".npy")
-
-        build_embeddings(model, tokenizer, device, items, field, output_npy, jp)
-
-    print(f"\n✅ 全部处理完成")
+    build_embeddings(model, tokenizer, device, items, field, output_npy, jp)
 
 
 # ── 也可对单条文本编码, 供 tools/ 调试用 ──
@@ -162,7 +152,8 @@ def main():
     model, tokenizer, device = load_embedding_model()
     print(f"设备: {device}, 参数量: {sum(p.numel() for p in model.parameters()):,}")
 
-    process_json_files(model, tokenizer, device)
+    process_single_json(model, tokenizer, device, "embedding_qa.json", "Question")
+    print(f"\n✅ 全部处理完成")
 
 
 if __name__ == "__main__":
