@@ -149,11 +149,49 @@ def main():
     print("Qwen3 嵌入模型 — 批量编码工具")
     print(f"模型: {MODEL_DIR}")
 
-    model, tokenizer, device = load_embedding_model()
-    print(f"设备: {device}, 参数量: {sum(p.numel() for p in model.parameters()):,}")
+    model, tokenizer, device = None, None, None
 
-    process_single_json(model, tokenizer, device, "embedding_qa.json", "Question")
-    print(f"\n✅ 全部处理完成")
+    while True:
+        print("\n" + "="*40)
+        print("请选择要执行的操作:")
+        print("1. 制作所有npy文件")
+        print("2. 制作QA的npy文件")
+        print("3. 制作主知识库的npy文件")
+        print("4. 制作其他npy")
+        print("0. 退出")
+        print("="*40)
+        
+        choice = input("请输入数字选项 (0-4): ").strip()
+        
+        if choice in ['1', '2', '3', '4'] and model is None:
+            model, tokenizer, device = load_embedding_model()
+            print(f"设备: {device}, 参数量: {sum(p.numel() for p in model.parameters()):,}")
+
+        # 使用 str() 包裹 device 解决 Pylance 类型推断问题
+        # 虽然经过 load_embedding_model 后必定不为 None, 但初始赋值让其认为是 Unknown | None
+        if choice == '1':
+            process_single_json(model, tokenizer, str(device), "embedding_qa.json", "Question")
+            process_single_json(model, tokenizer, str(device), "embedding_knowledge.json", "content")
+            print("\n✅ 所有指定文件处理完成")
+        elif choice == '2':
+            process_single_json(model, tokenizer, str(device), "embedding_qa.json", "Question")
+            print("\n✅ QA文件处理完成")
+        elif choice == '3':
+            process_single_json(model, tokenizer, str(device), "embedding_knowledge.json", "content")
+            print("\n✅ 主知识库文件处理完成")
+        elif choice == '4':
+            filename = input("请输入 rag/ 目录下的 .json 文件名 (例如 abc.json): ").strip()
+            field = input("请输入需要向量化的字段名 (例如 content): ").strip()
+            if filename and field:
+                process_single_json(model, tokenizer, str(device), filename, field)
+                print(f"\n✅ {filename} 处理完成")
+            else:
+                print("⚠  文件名或字段名不能为空")
+        elif choice == '0':
+            print("退出程序。")
+            break
+        else:
+            print("⚠  无效选项，请重新输入")
 
 
 if __name__ == "__main__":
