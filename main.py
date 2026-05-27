@@ -16,14 +16,18 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
-import torch
-
-# ── 调试模式：在 import transformers 之前设环境变量 ──
+# ── 调试模式：在所有第三方 import 之前设环境变量 ──
+# 必须在 numpy/torch/transformers 之前, 因为这些库可能拉进 tqdm
 DEBUG = "--debug" in sys.argv
 if not DEBUG:
     import os
+    os.environ["TQDM_DISABLE"] = "1"                # 关 tqdm 进度条 (compressed-tensors)
     os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+    os.environ["HF_HUB_OFFLINE"] = "1"               # 强制离线
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+import numpy as np
+import torch
 
 from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM
 
@@ -34,7 +38,7 @@ if not DEBUG:
 # ── 路径 ──────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent
 EMBEDDING_MODEL_DIR = BASE_DIR / "model" / "qwen_embedding_model"
-LLM_MODEL_DIR = BASE_DIR / "model" / "qwen_model"
+LLM_MODEL_DIR = BASE_DIR / "model" / "qwen2.5-3B"
 RAG_DIR = BASE_DIR / "rag"
 
 # ── 阈值 ──────────────────────────────────────────────────
